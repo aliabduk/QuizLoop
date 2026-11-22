@@ -1,0 +1,294 @@
+.catalogue,
+.qlist {
+  display: grid;
+  gap: 10px;
+}
+.catalogrow,
+.focusrow,
+.qrow {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: white;
+  border: 1px solid #d4ded7;
+  border-radius: 14px;
+  padding: 17px 20px;
+  text-align: left;
+}
+.catalogrow:hover,
+.focusrow:hover,
+.qrow:not(:disabled):hover {
+  border-color: #70a08b;
+  background: #fbfdf9;
+}
+.rowbody {
+  flex: 1;
+  min-width: 0;
+}
+.rowbody > strong,
+.focusrow strong {
+  display: block;
+  font-size: 18px;
+  letter-spacing: -0.4px;
+}
+.rowbody small,
+.focusrow small,
+.qrow small {
+  display: block;
+  margin-top: 2px;
+  font-size: 14px;
+}
+.chev {
+  font: 25px Georgia;
+  color: #557564;
+  margin-left: auto;
+}
+.progresslabel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 12px 0 5px;
+  font-size: 13px;
+  color: #4d6858;
+}
+.progresslabel strong {
+  font-size: 13px;
+  color: #315540;
+}
+progress {
+  display: block;
+  width: 100%;
+  height: 6px;
+  border: 0;
+  border-radius: 9px;
+  overflow: hidden;
+  appearance: none;
+  background: #e5ece5;
+}
+progress::-webkit-progress-bar {
+  background: #e5ece5;
+  border-radius: 9px;
+}
+progress::-webkit-progress-value {
+  background: #4f8864;
+  border-radius: 9px;
+}
+progress::-moz-progress-bar {
+  background: #4f8864;
+}
+.back {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: #325e4b;
+  font-weight: 600;
+  padding: 0 4px;
+}
+.studyhead {
+  background: #e9f1e9;
+  border: 1px solid #d3e2d4;
+  border-radius: 17px;
+  padding: 24px;
+  margin: 9px 0 22px;
+}
+.studyhead > small {
+  text-transform: capitalize;
+}
+.studyhead .primary {
+  margin-top: 17px;
+}
+.subheading {
+  margin: 22px 0 12px;
+}
+.subheading small {
+  font-size: 15px;
+  font-weight: 500;
+}
+.qrow strong {
+  font-size: 16px;
+  font-weight: 550;
+}
+.qrow {
+  align-items: start;
+}
+.qnumber {
+  min-width: 27px;
+  height: 27px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: #f0f3ec;
+  color: #44634f;
+  font-size: 13px;
+}
+.qrow > span:nth-child(2) {
+  min-width: 0;
+}
+.qrow:disabled {
+  opacity: 1;
+}
+.focusrow {
+  margin: 9px 0;
+}
+.insightnote {
+  font-size: 14px;
+  color: #526355;
+  margin-bottom: 12px;
+}
+.nav.on {
+  box-shadow: inset 3px 0 #40795c;
+}
+.catalogrow .tile {
+  align-self: flex-start;
+}
+.studyhead h1,
+.catalogrow strong,
+.qrow strong {
+  overflow-wrap: anywhere;
+}
+.katex-display {
+  max-width: 100%;
+}
+@media (min-width: 900px) {
+  .catalogue {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .studyhead {
+    max-width: 920px;
+  }
+}
+@media (max-width: 680px) {
+  .side {
+    position: fixed;
+    inset: auto 0 0;
+    width: 100%;
+    height: calc(65px + env(safe-area-inset-bottom));
+    padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
+    background: #fffffff7;
+    border-top: 1px solid #cad8cf;
+    box-shadow: 0 -3px 18px #193d3010;
+    z-index: 4;
+    justify-content: space-around;
+    overflow: visible;
+  }
+  .side .nav {
+    flex: 1;
+    min-height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 3px;
+    padding: 5px;
+    font-weight: 600;
+    font-size: 12px;
+    border-radius: 13px;
+  }
+  .side .nav svg {
+    width: 20px;
+    height: 20px;
+  }
+  .side .nav.on {
+    box-shadow: none;
+    background: #e0eee3;
+  }
+  .shell {
+    padding-bottom: calc(67px + env(safe-area-inset-bottom));
+  }
+  .top {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 0 16px;
+    height: 55px;
+  }
+  .top > div {
+    font-size: 14px;
+  }
+  .top .row {
+    font-size: 13px;
+  }
+  .top .mobilebrand {
+    width: 30px;
+    height: 30px;
+  }
+  .wrap {
+    padding: 18px 16px 20px;
+  }
+  .hero {
+    border-radius: 18px;
+  }
+  .stats .stat {
+    border-radius: 12px;
+  }
+  .catalogrow {
+    gap: 12px;
+    padding: 16px;
+  }
+  .rowbody > strong {
+    font-size: 17px;
+  }
+  .studyhead {
+    padding: 18px;
+  }
+  .panel .option {
+    min-height: 56px;
+  }
+  .narrow .intro h2 {
+    font-size: 19px;
+  }
+  .intro .outline {
+    white-space: nowrap;
+  }
+  .narrow .panel {
+    border-radius: 16px;
+  }
+  .focusrow {
+    padding: 15px;
+  }
+  .qrow {
+    padding: 14px;
+  }
+  .studyhead .primary,
+  .primary,
+  .outline {
+    min-height: 44px;
+  }
+  .nav,
+  .primary,
+  .outline,
+  .option,
+  .catalogrow,
+  .focusrow,
+  .qrow {
+    -webkit-tap-highlight-color: transparent;
+  }
+  .primary:active,
+  .option:not(:disabled):active,
+  .catalogrow:active {
+    transform: scale(0.99);
+  }
+  #toast:not(:empty) {
+    bottom: calc(76px + env(safe-area-inset-bottom));
+    width: max-content;
+    max-width: 90vw;
+  }
+  .sectionhead {
+    gap: 6px;
+  }
+  .top > div {
+    gap: 5px;
+  }
+  .wrap h1 {
+    line-height: 1.14;
+  }
+  .catalogue .progresslabel {
+    margin-top: 10px;
+  }
+}
+.findstudy {
+  margin: 0 0 14px;
+  min-height: 46px;
+}
