@@ -16,6 +16,8 @@ function readPath() {
   const [tab, level, id] = location.hash.slice(1).split("/");
   page = [
     "Subjects",
+    "Quiz",
+    "Saved",
     "Insights",
     "Dashboard",
     ...(data.admin ? ["Admin"] : []),

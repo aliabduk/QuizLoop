@@ -1,10 +1,10 @@
-# Recall Studio on Vercel and Supabase
+# Quiz Loop on Vercel and Supabase
 
 Vercel serves the Android-friendly frontend. Supabase Auth manages accounts. Supabase Postgres stores the question bank, attempts and individual revision schedules. The frontend uses authenticated database functions. The private recall schema does not need to be exposed in the Data API.
 
 ## Deploy
 
-1. In your Supabase project's SQL Editor run the complete supabase/setup.sql. For an existing Recall Studio database, use the same project to retain questions and progress. Enable email/password authentication and the Data API with public in its exposed schemas.
+1. In your Supabase project's SQL Editor run the complete supabase/setup.sql. For an existing Quiz Loop database, use the same project to retain questions and progress. Enable email/password authentication and the Data API with public in its exposed schemas.
 2. Extract this ZIP and commit its contents to a GitHub repository. Place vercel.json, build.mjs, web/ and supabase/ together at the repository root.
 3. Import the repository into Vercel. Choose Other for the framework and the repository root for Root Directory. The included vercel.json sets the build command and output directory. All browser libraries are bundled.
 4. Before deploying, add SUPABASE_URL (the project HTTPS URL) and SUPABASE_PUBLISHABLE_KEY (the public key starting with sb_publishable_) to Production. Configure Preview separately if you use preview deployments. These two values are shipped to the browser. Keep database passwords, service-role keys and secret keys out of the frontend.
@@ -26,3 +26,15 @@ To verify the deployment, import one question as admin, answer it using a studen
 ## Local build
 
 With Node.js 20+ and the two environment variables set, run `node build.mjs`, then serve dist/ using a local static web server. No npm dependencies are required.
+
+## Upgrading an existing installation
+
+Run supabase/upgrade_quiz_loop.sql once in the existing Recall Studio / Quiz Loop database before deploying the updated frontend. For a fresh installation run supabase/setup.sql instead. Keep your existing project URL, public key and admin account. The schema and RPC prefixes remain recall for compatibility.
+
+## Practice, quiz and corrections
+
+Practice prioritises due questions. Correct streaks move through nominal intervals of 1, 3, 7, 14, 30 and 60 days. The last 19 practice outcomes for this learner and question scale the interval: a history of mistakes shortens the delay even after a correct answer. A miss resets the streak and schedules another review after 10 minutes divided by one plus the number of prior recent misses, with a one-minute minimum. These are adjustable study defaults. Previously scheduled questions adopt the new calculation on the next practice answer.
+
+Save keeps a question for reference. Flag marks it for personal attention. Report error sends a note to the desktop admin report queue. An admin can correct the prompt, options, answer key and explanation or resolve the report without editing. Use the Saved tab to see both personal lists.
+
+A timed quiz draws up to 100 distinct questions from selected subjects, spreading them across the subjects as availability permits. New selections save to Supabase. You can leave and resume while the timer continues. At the deadline the server stops accepting answers. Quiz scores are separate from practice scheduling. Starting a new quiz replaces the previous quiz result for that user.

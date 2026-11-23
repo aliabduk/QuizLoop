@@ -97,13 +97,19 @@ function nav(p, ic) {
   );
 }
 function render() {
+  document.body.classList.toggle(
+    "reading",
+    Boolean(session || (page === "Quiz" && quiz && !quiz.finished)),
+  );
   let title = session ? "Revision session" : page;
   app.innerHTML =
     '<aside class="side"><div class="brand"><span class="mark">' +
     icon("layers", 24) +
-    "</span>Recall Studio</div>" +
+    "</span>Quiz Loop</div>" +
     nav("Dashboard", "home") +
     nav("Subjects", "book") +
+    nav("Quiz", "clock") +
+    nav("Saved", "layers") +
     nav("Insights", "chart") +
     (data.admin ? nav("Admin", "gear") : "") +
     '<div class="bottom"><button class="nav" data-action="sound">' +
@@ -112,7 +118,7 @@ function render() {
     (sound ? "on" : "off") +
     '</button></div></aside><div class="shell"><header class="top"><div><span class="mobilebrand mark">' +
     icon("layers", 18) +
-    "</span>Recall Studio <span>/</span> <strong>" +
+    "</span>Quiz Loop <span>/</span> <strong>" +
     title +
     '</strong></div><button data-action="account" class="row"><span class="avatar">' +
     icon("user", 17) +
@@ -122,67 +128,41 @@ function render() {
   $("#main").innerHTML = session
     ? review()
     : page === "Admin" && data.admin
-      ? admin()
-      : page === "Subjects"
-        ? studyLibrary()
-        : page === "Insights"
-          ? insights()
-          : dashboard();
+      ? mobileView.matches
+        ? desktopMessage()
+        : reportList() + admin()
+      : page === "Quiz"
+        ? quizView()
+        : page === "Saved"
+          ? collectionView()
+          : page === "Subjects"
+            ? studyLibrary()
+            : page === "Insights"
+              ? insights()
+              : dashboard();
 }
 function dashboard() {
   const ready = data.questions.filter(available),
     due = ready.filter((q) => q.due).length;
-  const tiles = [
-    ["clock", "sand", due, "Due for review"],
-    [
-      "layers",
-      "sage",
-      data.questions.filter((q) => !q.due).length,
-      "New questions",
-    ],
-    [
-      "chart",
-      "lilac",
-      data.answered
-        ? Math.round((100 * data.correct) / data.answered) + "%"
-        : "—",
-      "Answer accuracy",
-    ],
-  ];
   return (
-    '<div class="intro"><h1>Revision dashboard</h1><span class="date">' +
-    icon("calendar", 17) +
-    new Date().toLocaleDateString("en-GB", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    }) +
-    '</span></div><section class="hero"><span class="upper">Daily review</span><h2>' +
-    (ready.length ? "Ready to revise?" : "All caught up") +
-    "</h2><p>" +
-    ready.length +
-    " question" +
-    (ready.length === 1 ? " is" : "s are") +
-    ' ready in your question bank.</p><button class="light" data-action="start" ' +
-    (!ready.length ? "disabled" : "") +
+    '<div class="intro"><h1>Today</h1><small>' +
+    esc(
+      new Date().toLocaleDateString(undefined, {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+      }),
+    ) +
+    '</small></div><section class="today"><h2>Daily practice</h2><p>' +
+    due +
+    " due for review · " +
+    (ready.length - due) +
+    ' new questions</p><button class="light" data-action="start" ' +
+    (ready.length ? "" : "disabled") +
     ">" +
-    icon("play", 15) +
-    ' Start revision</button><div class="art" aria-hidden="true"><i class="paper"></i><i class="paper b"></i><i class="paper c">∫ f(x) dx</i></div></section><div class="stats">' +
-    tiles
-      .map(
-        ([i, c, v, l]) =>
-          '<div class="stat"><span class="tile ' +
-          c +
-          '">' +
-          icon(i) +
-          "</span><div><b>" +
-          v +
-          "</b><small>" +
-          l +
-          "</small></div></div>",
-      )
-      .join("") +
-    '</div><div class="sectionhead"><h2>Your subjects</h2><button class="textbtn" data-nav="Subjects">View subjects</button></div>' +
+    icon("play", 16) +
+    (ready.length ? "Start practice" : "All caught up") +
+    '</button></section><div class="sectionhead"><h2>Your subjects</h2><button class="textbtn" data-nav="Subjects">View all</button></div>' +
     catalogueRows("subject", data.subjects) +
     focusPreview()
   );
@@ -292,6 +272,7 @@ function review() {
         (s.idx + 1 === s.queue.length ? "Finish session" : "Next question") +
         "</button>"
       : "") +
+    questionTools(q.id) +
     "</section></div>"
   );
 }
@@ -321,7 +302,11 @@ async function answer(key) {
     } catch {}
   }
   s.pending = key;
-  const r = await rpc("answer", { qid: s.card.id, picked: key, attempt: s.token });
+  const r = await rpc("answer", {
+    qid: s.card.id,
+    picked: key,
+    attempt: s.token,
+  });
   s.pick = key;
   s.result = r;
   if (key === r.answer) {
@@ -429,7 +414,7 @@ function template() {
     ]),
     "Questions",
   );
-  XLSX.writeFile(wb, "Recall_Questions.xlsx");
+  XLSX.writeFile(wb, "Quiz_Loop_Questions.xlsx");
 }
 function parseRows(sheet) {
   let [head, ...rows] = XLSX.utils.sheet_to_json(sheet, {
@@ -462,7 +447,10 @@ function parseRows(sheet) {
   return items;
 }
 function account() {
-  dlg.innerHTML = '<div class="between"><h2>My account</h2><button class="outline" data-action="close">Close</button></div><p class="field">'+esc(user.email)+'</p><button class="outline" data-action="logout">Sign out</button>';
+  dlg.innerHTML =
+    '<div class="between"><h2>My account</h2><button class="outline" data-action="close">Close</button></div><p class="field">' +
+    esc(user.email) +
+    '</p><button class="outline" data-action="logout">Sign out</button>';
   if (!dlg.open) dlg.showModal();
 }
 async function run(fn) {
@@ -472,8 +460,7 @@ async function run(fn) {
     await fn();
   } catch (e) {
     toast(e.message || "Please try again.");
-    if ($("#dialog-status"))
-      $("#dialog-status").textContent = e.message;
+    if ($("#dialog-status")) $("#dialog-status").textContent = e.message;
     if (session?.pending && !session.result) render();
   } finally {
     busy = false;
@@ -487,6 +474,7 @@ document.addEventListener("click", (e) => {
     return;
   }
   run(async () => {
+    if (await loopClick(b)) return;
     if (b.dataset.path) return openPath(b.dataset.path);
     if (b.dataset.practice) return start(b.dataset.practice, b.dataset.id);
     if (b.dataset.action === "end") {
@@ -598,6 +586,7 @@ document.addEventListener("submit", (e) => {
     id = e.target.id,
     action = e.submitter?.value;
   run(async () => {
+    if (await loopSubmit(id, e.target, f)) return;
     if (id === "auth") {
       let resp =
         action === "signup"
@@ -635,21 +624,39 @@ document.addEventListener("submit", (e) => {
   });
 });
 async function boot() {
-  const config=window.RECALL_CONFIG;
-  if (!config?.url || !config?.key) throw Error("Supabase configuration missing. Check the Vercel environment variables and redeploy.");
-  db=supabase.createClient(config.url,config.key);
-  const {data:auth,error}=await db.auth.getSession();
-  if(error)throw error;
-  user=auth.session?.user;
-  if(!user){
-    app.innerHTML='<main class="wrap narrow"><section class="panel stack"><span class="mark">'+icon("layers")+'</span><h1>Recall Studio</h1><p>Sign in to review your subjects and track your progress.</p><form id="auth">'+field("Email","email",'type="email" required autocomplete="email"')+field("Password","password",'type="password" required minlength="6" autocomplete="current-password"')+'<div class="row"><button class="primary" value="login">Sign in</button><button class="outline" value="signup">Create account</button></div></form><p role="status" id="dialog-status"></p></section></main>';
+  const config = window.RECALL_CONFIG;
+  if (!config?.url || !config?.key)
+    throw Error(
+      "Supabase configuration missing. Check the Vercel environment variables and redeploy.",
+    );
+  db = supabase.createClient(config.url, config.key);
+  const { data: auth, error } = await db.auth.getSession();
+  if (error) throw error;
+  user = auth.session?.user;
+  if (!user) {
+    app.innerHTML =
+      '<main class="wrap narrow"><section class="panel stack"><span class="mark">' +
+      icon("layers") +
+      '</span><h1>Quiz Loop</h1><p>Sign in to review your subjects and track your progress.</p><form id="auth">' +
+      field("Email", "email", 'type="email" required autocomplete="email"') +
+      field(
+        "Password",
+        "password",
+        'type="password" required minlength="6" autocomplete="current-password"',
+      ) +
+      '<div class="row"><button class="primary" value="login">Sign in</button><button class="outline" value="signup">Create account</button></div></form><p role="status" id="dialog-status"></p></section></main>';
     return;
   }
-  db.auth.onAuthStateChange((event,current)=>{if(event==="SIGNED_OUT" || (current?.user && current.user.id!==user.id)) location.reload()});
-  await refresh();
+  db.auth.onAuthStateChange((event, current) => {
+    if (
+      event === "SIGNED_OUT" ||
+      (current?.user && current.user.id !== user.id)
+    )
+      location.reload();
+  });
+  await Promise.all([refresh(), refreshTools(), syncQuiz()]);
   readPath();
   render();
-
 }
 boot().catch((e) => {
   app.innerHTML =
@@ -657,11 +664,12 @@ boot().catch((e) => {
     esc(e.message) +
     '</p><button class="outline" id="retry">Retry</button></main>';
   $("#retry").onclick = () => location.reload();
-
 });
 document.addEventListener("visibilitychange", () => {
   if (
-    user && data && !document.hidden &&
+    user &&
+    data &&
+    !document.hidden &&
     !session &&
     !busy &&
     !dlg.open &&

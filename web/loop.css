@@ -1,0 +1,122 @@
+.today {
+  background: #173f37;
+  border-radius: 16px;
+  padding: 23px 26px;
+  color: #fff;
+}
+.today p {
+  color: #d6e6d8;
+  margin: 5px 0 17px;
+}
+.qtools,
+.tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 16px 0 4px;
+}
+.qtools button,
+.tabs button {
+  padding: 9px 13px;
+  min-height: 44px;
+  border: 1px solid #d3ded5;
+  border-radius: 9px;
+  font-size: 14px;
+  background: white;
+}
+.qtools [aria-pressed="true"],
+.tabs [aria-pressed="true"],
+.option[aria-pressed="true"] {
+  background: #dceee1;
+  border-color: #547e61;
+}
+.tick {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+}
+.tick input {
+  width: 18px;
+  height: 18px;
+  accent-color: #245d49;
+}
+fieldset {
+  border: 1px solid #dae0da;
+  border-radius: 10px;
+  padding: 10px 16px;
+}
+legend {
+  font-weight: 650;
+}
+#quiz-clock {
+  font-variant-numeric: tabular-nums;
+  background: #edf2eb;
+  padding: 6px 12px;
+  border-radius: 7px;
+}
+.tabs {
+  margin: 16px 0;
+}
+.qrow {
+  margin-bottom: 7px;
+}
+dialog {
+  max-height: 85dvh;
+  overflow: auto;
+}
+.qtools {
+  border-top: 1px solid #e1e8e0;
+  padding-top: 10px;
+}
+.qtools button {
+  border-color: transparent;
+  background: #f5f7f4;
+}
+@media (max-width: 680px) {
+  .side .nav[data-nav="Admin"] {
+    display: none;
+  }
+  .side .nav {
+    font-size: 11.5px;
+  }
+  .reading .side,
+  .reading .top {
+    display: none;
+  }
+  .reading .shell {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .reading .wrap {
+    padding: 16px 12px;
+  }
+  .reading .panel {
+    padding: 16px;
+  }
+  .reading .choices {
+    margin: 18px 0;
+  }
+  .reading .q {
+    line-height: 1.45;
+    font-size: 21px;
+  }
+  .reading .qtools {
+    justify-content: space-between;
+  }
+  .reading .qtools button {
+    flex: 1;
+  }
+  .reading .feedback + .primary {
+    width: 100%;
+    height: 48px;
+  }
+  .today {
+    padding: 20px;
+  }
+  .today .light {
+    width: 100%;
+  }
+  .reading .option {
+    min-height: 55px;
+  }
+}
