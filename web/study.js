@@ -60,6 +60,12 @@ function bar(m) {
     '"></i><i class="learning" style="flex:' + learning +
     '"></i><i style="flex:' + (m.total-m.seen) + '"></i></span><b>' + m.pct + '%</b></div>';
 }
+function deckCounts(m) {
+  return '<span class="deck-counts"><span class="count-learned">' + m.learned +
+    ' learned</span><span class="count-learning">' + (m.seen - m.learned) +
+    ' in progress</span><span class="count-new">' + (m.total - m.seen) +
+    ' not attempted</span></span>';
+}
 function catalogueRows(level, items) {
   return items.length
     ? '<div class="catalogue">' +
@@ -95,7 +101,7 @@ function catalogueRows(level, items) {
               "</strong><small>" +
               detail +
               "</small>" +
-              bar(m) +
+              bar(m) + (level === "deck" ? deckCounts(m) : "") +
               '</span><span class="chev" aria-hidden="true">›</span></button>'
             );
           })
@@ -170,7 +176,7 @@ function studyLibrary() {
     "</small><h1>" +
     esc(obj.name) +
     "</h1>" +
-    bar(m) +
+    bar(m) + (level === "deck" ? deckCounts(m) : "") +
     '<button class="primary" data-practice="' +
     level +
     '" data-id="' +
@@ -221,54 +227,43 @@ async function showQuestionPage() {
       el.innerHTML += '<button class="outline" data-offset="' + (offset+40) + '">Next page</button>';
   } catch (error) { el.textContent = error.message; }
 }
-function ranked(level) {
-  const items = level === "subject" ? data.subjects : data.chapters;
-  return items
-    .map((item) => ({
-      item,
-      m: metrics(level,item.id),
-    }))
-    .filter((x) => x.m.missed)
-    .sort(
-      (a, b) =>
-        b.m.missed / b.m.seen - a.m.missed / a.m.seen ||
-        b.m.missed - a.m.missed ||
-        a.item.name.localeCompare(b.item.name),
-    );
-}
-function focusRow(level, { item, m }) {
-  return (
-    '<button class="focusrow" data-path="' +
-    route(level, item.id) +
-    '"><span><strong>' +
-    esc(item.name) +
-    "</strong><small>" +
-    (level === "chapter" ? esc(subjectBy(item.subject).name) + " · " : "") +
-    m.missed +
-    " of " +
-    m.seen +
-    ' reviewed questions missed on the latest attempt</small></span><span class="chev">›</span></button>'
-  );
+function subjectAssessment(m) {
+  if (!m.seen) return "Not started";
+  if (m.seen < Math.min(5, m.total)) return "Early practice";
+  const recall = (m.seen - m.missed) / m.seen;
+  if (recall <= 0.7) return "Needs attention";
+  if (m.learned / m.total >= 0.7 && recall >= 0.8) return "Strong";
+  return "Building mastery";
 }
 function insights() {
-  let html =
-    '<h1>Learning insights</h1><section class="studyhead"><h2>Overall mastery</h2>' +
-    bar(metrics()) +
-    "</section>";
-  for (const level of ["subject", "chapter"]) {
-    const list = ranked(level);
-    html +=
-      '<h2 class="subheading">' +
-      (level === "subject" ? "Subjects" : "Chapters") +
-      " to focus on</h2>" +
-      (list.length
-        ? '<p class="insightnote">Highest share of questions missed on the latest attempt first.</p>' +
-          list.map((x) => focusRow(level, x)).join("")
-        : '<div class="panel muted">' +
-          (metrics().seen
-            ? "No current misses at this level."
-            : "Answer a few questions to see your focus areas.") +
-          "</div>");
+  const subjects = data.subjects.map(item => ({item, m:metrics("subject",item.id)}))
+    .filter(({m}) => m.total > 0);
+  let html = '<h1>Learning insights</h1>';
+  if (!subjects.length) return html + '<p class="panel muted">Add questions to a subject to see its progress here.</p>';
+  const percent = (n,d) => Math.round(100*n/d) + "%";
+  const guidance = {
+    "Needs attention": "Revisit these subjects first. At least 30% of attempted questions were incorrect on their latest attempt.",
+    "Strong": "At least 70% of the subject is learned, and at least 80% of attempted questions were correct on their latest attempt.",
+    "Building mastery": "Keep up the spaced reviews. Three consecutive correct answers move a question into learned.",
+    "Early practice": "Attempt five distinct questions, or the whole subject if it has fewer, to get a strength assessment.",
+    "Not started": "Start practising to establish a baseline."
+  };
+  for (const [status, note] of Object.entries(guidance)) {
+    const rows = subjects.filter(({m}) => subjectAssessment(m) === status);
+    if (!rows.length) continue;
+    rows.sort((a,b) => {
+      if (status === "Needs attention") return b.m.missed/b.m.seen - a.m.missed/a.m.seen || a.item.name.localeCompare(b.item.name);
+      return b.m.learned/b.m.total - a.m.learned/a.m.total || a.item.name.localeCompare(b.item.name);
+    });
+    html += '<section><h2 class="subheading">' + status + '</h2><p class="insightnote">' + note + '</p>';
+    for (const {item,m} of rows) {
+      const detail = m.seen ? m.pct + '% learned · ' + m.seen + ' of ' + m.total + ' attempted' +
+        ' · Latest answers correct: ' + percent(m.seen-m.missed,m.seen) : m.total + ' questions available';
+      html += '<button class="focusrow" data-path="' + route("subject",item.id) +
+        '"><span><strong>' + esc(item.name) + '</strong><small>' + detail +
+        '</small></span><span class="chev" aria-hidden="true">›</span></button>';
+    }
+    html += '</section>';
   }
   return html;
 }

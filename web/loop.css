@@ -128,3 +128,8 @@ dialog {
 .qnumber.unattempted { background:#e9ebeb; color:#515a59; }
 .approval { gap:12px; padding:8px 0; overflow-wrap:anywhere; }
 .admin-tabs { flex-wrap:wrap; }
+.deck-counts { display:flex; flex-wrap:wrap; gap:4px 14px; margin:6px 0 10px; font-size:.8rem; font-variant-numeric:tabular-nums; }
+.deck-counts > span { white-space:nowrap; }
+.count-learned { color:#196237; }
+.count-learning { color:#9a3131; }
+.count-new { color:#515a59; }
