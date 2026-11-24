@@ -21,7 +21,7 @@ on conflict do nothing;
 
 In Admin, add a subject and chapter, or choose Excel import to download a workbook. Use one question per row and put the correct answer in Option A. Leave Deck blank for chapter-level questions. New Supabase projects start with an empty question bank. Browser-only sample attempts from the old demo are separate from authenticated records.
 
-To verify the deployment, import one question as admin, answer it using a student account, then sign in as the same student on another device and check the chapter progress. The student account should have no Admin tab. After changing Vercel environment variables, redeploy.
+To verify the deployment, import one question as admin, approve the student under Admin → User approvals, answer it using that student account, then sign in as the same student on another device and check the chapter progress. The student account should have no Admin tab. After changing Vercel environment variables, redeploy.
 
 ## Local build
 
@@ -33,8 +33,16 @@ Run supabase/upgrade_quiz_loop.sql once in the existing Recall Studio / Quiz Loo
 
 ## Practice, quiz and corrections
 
-Practice prioritises due questions. Correct streaks move through nominal intervals of 1, 3, 7, 14, 30 and 60 days. The last 19 practice outcomes for this learner and question scale the interval: a history of mistakes shortens the delay even after a correct answer. A miss resets the streak and schedules another review after 10 minutes divided by one plus the number of prior recent misses, with a one-minute minimum. These are adjustable study defaults. Previously scheduled questions adopt the new calculation on the next practice answer.
+Practice draws one eligible card at a time. Each ten practice answers on the learner’s local day target six new, three previously wrong and one previously correct question. The daily position follows the account across sessions. Unavailable buckets yield to overdue reviews first, then new questions. Subject, chapter and deck sessions use the same rule within the selected scope. Practice continues until the learner exits or the scope has no eligible cards.
 
-Save keeps a question for reference. Flag marks it for personal attention. Report error sends a note to the desktop admin report queue. An admin can correct the prompt, options, answer key and explanation or resolve the report without editing. Use the Saved tab to see both personal lists.
+A wrong answer clears the correct streak, including on a learned question, and makes the card eligible again after 10 minutes. Three consecutive correct scheduled answers mark it learned. After successive correct answers the waits are 1, 3, 7, 14, 30 and 60 days, then 60 days after each further success. Existing due dates and streaks carry forward until the next answer. The percentage is learned questions divided by all questions. Green indicates learned, red indicates attempted and still learning, and grey indicates unseen.
+
+Once every question in a deck has been attempted, its detail screen offers Reset deck progress. This restarts that learner’s schedule, preserving historical attempts and personal saved items.
+
+New and existing non-admin accounts need approval in Admin → User approvals. Existing admin memberships grant access immediately. Supabase Auth verifies identity first. All study data and actions require approval in the database.
+
+Flag sends a question to the admin Flagged questions tab and adds it to the learner’s flagged list. Saving a correction there clears the flags for that question. Save is personal. Report error accepts a written note and remains available under Question bank.
+
+Under Manage catalogue, rename, delete or merge subjects, chapters and decks. Merge preserves question IDs and learner progress, combining same-named child containers. If two questions have the same prompt in the destination, the transaction stops so the administrator can reconcile the duplicate. Deletion removes descendant questions and their practice histories for all learners. Existing timed quizzes retain their original snapshots.
 
 A timed quiz draws up to 100 distinct questions from selected subjects, spreading them across the subjects as availability permits. New selections save to Supabase. You can leave and resume while the timer continues. At the deadline the server stops accepting answers. Quiz scores are separate from practice scheduling. Starting a new quiz replaces the previous quiz result for that user.
