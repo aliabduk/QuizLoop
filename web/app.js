@@ -107,7 +107,6 @@ function render() {
     icon("layers", 24) +
     "</span>Quiz Loop</div>" +
     nav("Dashboard", "home") +
-    nav("Subjects", "book") +
     nav("Quiz", "clock") +
     nav("Saved", "layers") +
     nav("Insights", "chart") +
@@ -128,22 +127,20 @@ function render() {
   $("#main").innerHTML = session
     ? review()
     : page === "Admin" && data.admin
-      ? mobileView.matches
-        ? desktopMessage()
-        : reportList() + admin()
+      ? adminWorkspace()
       : page === "Quiz"
         ? quizView()
         : page === "Saved"
           ? collectionView()
-          : page === "Subjects"
+          : page === "Dashboard" && studyLevel !== "root"
             ? studyLibrary()
             : page === "Insights"
               ? insights()
               : dashboard();
+  showQuestionPage();
 }
 function dashboard() {
-  const ready = data.questions.filter(available),
-    due = ready.filter((q) => q.due).length;
+  const m = metrics(), fresh = m.total - m.seen, due = m.ready - fresh;
   return (
     '<div class="intro"><h1>Today</h1><small>' +
     esc(
@@ -156,15 +153,14 @@ function dashboard() {
     '</small></div><section class="today"><h2>Daily practice</h2><p>' +
     due +
     " due for review · " +
-    (ready.length - due) +
+    fresh +
     ' new questions</p><button class="light" data-action="start" ' +
-    (ready.length ? "" : "disabled") +
+    (m.ready ? "" : "disabled") +
     ">" +
     icon("play", 16) +
-    (ready.length ? "Start practice" : "All caught up") +
-    '</button></section><div class="sectionhead"><h2>Your subjects</h2><button class="textbtn" data-nav="Subjects">View all</button></div>' +
-    catalogueRows("subject", data.subjects) +
-    focusPreview()
+    (m.ready ? "Start practice" : "All caught up") +
+    '</button></section><div class="sectionhead"><h2>Your subjects</h2></div><input class="findstudy" id="library-search" type="search" aria-label="Search subjects, chapters and decks" placeholder="Search subjects, chapters and decks" value="' +
+    esc(librarySearch) + '"><div id="matches">' + matchingRows() + '</div>' 
   );
 }
 function shuffle(xs) {
@@ -175,36 +171,18 @@ function shuffle(xs) {
   return xs;
 }
 async function start(level, id) {
-  await refresh();
-  let queue = data.questions
-    .filter((q) => (!level || belongs(q, level, id)) && available(q))
-    .sort(
-      (a, b) =>
-        (a.due ? Date.parse(a.due) : Infinity) -
-        (b.due ? Date.parse(b.due) : Infinity),
-    )
-    .slice(0, 20);
-  if (!queue.length) {
-    toast("No questions due in this selection.");
-    render();
-    return;
-  }
-  session = { queue, idx: 0, hits: 0 };
-  try {
-    await loadCard();
-  } catch (e) {
-    session = null;
-    throw e;
-  }
+  session = { level: level || "all", id: id || null, idx: 0, hits: 0 };
+  try { await loadCard(); } catch (e) { session = null; throw e; }
 }
 async function loadCard() {
-  let s = session;
-  if (s.idx < s.queue.length) {
-    let id = s.queue[s.idx].id;
-    let card = await rpc("card", { qid: id });
-    s.card = card;
+  const s = session, midnight = new Date();
+  midnight.setHours(0,0,0,0);
+  const card = await rpc("next", {scope:s.level, item:s.id, day_start:midnight.toISOString()});
+  if (session !== s) return;
+  s.card = card;
+  s.result = null;
+  if (card) {
     s.order = shuffle(Object.keys(card.choices));
-    s.result = null;
     s.token = crypto.randomUUID();
     s.pending = null;
   }
@@ -213,31 +191,27 @@ async function loadCard() {
 }
 function review() {
   let s = session;
-  if (s.idx >= s.queue.length)
+  if (!s.card)
     return (
       '<div class="narrow panel stack"><span class="tile sage">' +
       icon("check") +
       "</span><h1>Session complete</h1><p>" +
       s.hits +
       " correct out of " +
-      s.queue.length +
+      s.idx +
       '. Your next reviews are scheduled.</p><button class="primary" data-action="end">Return to study</button></div>'
     );
   let q = s.card,
     r = s.result,
-    d = deckBy(s.queue[s.idx].deck) || chapterBy(chapterId(s.queue[s.idx]));
+    d = deckBy(q.deck) || chapterBy(q.chapter);
   return (
     '<div class="narrow"><div class="intro"><h2>' +
-    esc(d.name) +
+    esc(d?.name) +
     '</h2><button class="outline" data-action="end">End session</button></div><section class="panel"><div class="between"><small>Question ' +
     (s.idx + 1) +
-    " of " +
-    s.queue.length +
     '</small><button class="textbtn" data-action="sound">Sound ' +
     (sound ? "on" : "off") +
-    '</button></div><div class="meter"><i style="width:' +
-    (100 * (s.idx + 1)) / s.queue.length +
-    '%"></i></div><div class="q">' +
+    '</button></div><div class="q">' +
     math(q.prompt) +
     '</div><div class="choices">' +
     s.order
@@ -266,10 +240,7 @@ function review() {
           : "Incorrect · Correct answer highlighted") +
         "</b><p>" +
         math(r.explanation) +
-        "</p><small>Next review · " +
-        esc(new Date(r.due).toLocaleString()) +
-        '</small></div><button class="primary" data-action="next">' +
-        (s.idx + 1 === s.queue.length ? "Finish session" : "Next question") +
+        '</p></div><button class="primary" data-action="next">Next question' +
         "</button>"
       : "") +
     questionTools(q.id) +
@@ -314,7 +285,6 @@ async function answer(key) {
     beep();
   }
   render();
-  await refresh();
 }
 const headers = [
   "Subject",
@@ -474,10 +444,11 @@ document.addEventListener("click", (e) => {
     return;
   }
   run(async () => {
-    if (await loopClick(b)) return;
+    if (await adminClick(b) || await loopClick(b)) return;
     if (b.dataset.path) return openPath(b.dataset.path);
     if (b.dataset.practice) return start(b.dataset.practice, b.dataset.id);
     if (b.dataset.action === "end") {
+      await refresh();
       session = null;
       render();
       return;
@@ -586,7 +557,7 @@ document.addEventListener("submit", (e) => {
     id = e.target.id,
     action = e.submitter?.value;
   run(async () => {
-    if (await loopSubmit(id, e.target, f)) return;
+    if (await adminSubmit(id, f) || await loopSubmit(id, e.target, f)) return;
     if (id === "auth") {
       let resp =
         action === "signup"
@@ -654,6 +625,10 @@ async function boot() {
     )
       location.reload();
   });
+  if (!await rpc("access")) {
+    app.innerHTML = '<main class="wrap narrow"><section class="panel stack"><h1>Awaiting approval</h1><p>Your account (' + esc(user.email) + ') needs administrator approval before you can practise.</p><button class="primary" onclick="location.reload()">Check approval</button><button class="outline" data-action="logout">Sign out</button></section></main>';
+    return;
+  }
   await Promise.all([refresh(), refreshTools(), syncQuiz()]);
   readPath();
   render();
@@ -681,5 +656,5 @@ document.addEventListener("visibilitychange", () => {
 });
 setInterval(() => {
   if (!session && !busy && !dlg.open && page === "Dashboard" && $("#main"))
-    render();
+    refresh().then(render).catch(e => toast(e.message));
 }, 60000);

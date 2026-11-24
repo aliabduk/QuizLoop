@@ -10,8 +10,6 @@ const mobileView = matchMedia("(max-width: 680px)");
 mobileView.addEventListener("change", () => {
   if (user && data) render();
 });
-const desktopMessage = () =>
-  '<section class="panel"><h1>Question bank</h1><p>Open Quiz Loop on a desktop to add or correct questions.</p></section>';
 async function refreshTools() {
   studyTools = await rpc("tools");
 }
@@ -43,7 +41,7 @@ function questionTools(id) {
   );
 }
 function collectionView() {
-  const qs = data.questions.filter((q) => marked(q.id, collection));
+  const qs = studyTools.marks.filter((q) => q.kind === collection);
   return (
     '<h1>My collection</h1><div class="tabs">' +
     ["saved", "flagged"]
@@ -97,7 +95,7 @@ function reportList() {
               '"><span><strong>' +
               esc(r.note) +
               "</strong><small>" +
-              math(data.questions.find((q) => q.id === r.qid)?.prompt) +
+              math(r.prompt) +
               "</small></span></button>",
           )
           .join("")
@@ -105,14 +103,14 @@ function reportList() {
     "</section>"
   );
 }
-async function openReport(id) {
-  const r = studyTools.reports.find((x) => x.id === id),
-    q = await rpc("reference", { qid: r.qid });
+async function openReport(id, flagged = false) {
+  const r = flagged ? null : studyTools.reports.find((x) => x.id === id);
+  const q = await rpc("reference", { qid: flagged ? id : r.qid });
   editing = { r, q };
   modal(
-    "Review report",
+    flagged ? "Edit flagged question" : "Review report",
     '<p class="feedback">' +
-      esc(r.note) +
+      esc(r?.note || "Flagged for administrator review") +
       '</p><form id="correct"><label class="field">Question<textarea required name="prompt">' +
       esc(q.prompt) +
       "</textarea></label>" +
@@ -145,7 +143,7 @@ async function openReport(id) {
       esc(q.explanation) +
       '</textarea></label><button class="primary">Save correction and resolve</button></form><button class="textbtn" data-dismiss-report="' +
       esc(id) +
-      '">Resolve without editing</button>',
+      (flagged ? '" hidden></button><button class="outline" data-delete-question="' + esc(q.id) + '">Delete question</button>' : '">Resolve without editing</button>'),
   );
 }
 function acceptQuiz(value) {
@@ -195,11 +193,11 @@ function quizView() {
         )
         .join("") +
       '</fieldset><div class="grid"><label class="field">Questions<input type="number" min="1" max="100" required name="quantity" value="' +
-      Math.max(1, Math.min(10, data.questions.length)) +
+      Math.max(1, Math.min(10, metrics().total)) +
       '"></label><label class="field">Minutes<input type="number" min="1" max="180" required name="minutes" value="10"></label></div><small id="pool">' +
-      data.questions.length +
+      metrics().total +
       ' questions available</small><p><button class="primary" ' +
-      (data.questions.length ? "" : "disabled") +
+      (metrics().total ? "" : "disabled") +
       ">Start timed quiz</button></p></form>"
     );
   if (quiz.finished) {
@@ -282,8 +280,7 @@ document.addEventListener("change", (e) => {
   if (!e.target.closest("#new-quiz")) return;
   const ids = new FormData(e.target.form).getAll("subject");
   $("#pool").textContent =
-    data.questions.filter((q) => ids.includes(chapterBy(chapterId(q))?.subject))
-      .length + " questions available";
+    ids.reduce((n,id) => n + metrics("subject",id).total,0) + " questions available";
 });
 async function loopClick(b) {
   const v = b.dataset;
@@ -363,9 +360,7 @@ async function loopSubmit(id, form, f) {
     toast("Report sent to the question bank administrator.");
   } else if (id === "correct") {
     const { r, q } = editing;
-    await rpc("resolve", {
-      rid: r.id,
-      changes: {
+    const changes = {
         prompt: f.prompt,
         explanation: f.explanation,
         answer: f.answer,
@@ -373,8 +368,9 @@ async function loopSubmit(id, form, f) {
           Object.keys(q.choices).map((k) => [k, f[k]]),
         ),
         revision: q.revision,
-      },
-    });
+    };
+    if (r) await rpc("resolve", {rid:r.id, changes});
+    else await rpc("manage", {op:"edit",kind:"question",src:q.id,changes});
     dlg.close();
     await Promise.all([refresh(), refreshTools()]);
     render();

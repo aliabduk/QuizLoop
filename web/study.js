@@ -4,18 +4,10 @@ let studyLevel = "root",
 function chapterId(q) {
   return q.chapter || deckBy(q.deck)?.chapter;
 }
-function belongs(q, level, id) {
-  if (level === "question") return q.id === id;
-  if (level === "deck") return q.deck === id;
-  const chapter = chapterId(q);
-  return level === "chapter"
-    ? chapter === id
-    : chapterBy(chapter)?.subject === id;
-}
 function readPath() {
-  const [tab, level, id] = location.hash.slice(1).split("/");
+  let [tab, level, id] = location.hash.slice(1).split("/");
+  if (tab === "Subjects") tab = "Dashboard";
   page = [
-    "Subjects",
     "Quiz",
     "Saved",
     "Insights",
@@ -24,10 +16,11 @@ function readPath() {
   ].includes(tab)
     ? tab
     : "Dashboard";
+  questionOffset = 0;
   studyLevel = "root";
   studyId = "";
   if (
-    page === "Subjects" &&
+    page === "Dashboard" &&
     { subject: subjectBy, chapter: chapterBy, deck: deckBy }[level]?.(id)
   ) {
     studyLevel = level;
@@ -49,39 +42,30 @@ window.addEventListener("hashchange", () => {
   render();
   scrollTo(0, 0);
 });
-const route = (level, id) => "Subjects/" + level + "/" + id;
-function metrics(qs) {
-  const seen = qs.filter((q) => q.due),
-    missed = seen.filter((q) => q.stage === 0).length;
-  return {
-    total: qs.length,
-    seen: seen.length,
-    missed,
-    pct: qs.length ? Math.round((100 * seen.length) / qs.length) : 0,
-    ready: qs.filter(available).length,
-  };
+const route = (level, id) => "Dashboard/" + level + "/" + id;
+function metrics(level, id) {
+  const m = { total: 0, seen: 0, learned: 0, ready: 0, missed: 0 };
+  for (const group of data.groups) {
+    if (level && group[level] !== id) continue;
+    for (const key of Object.keys(m)) m[key] += group[key];
+  }
+  m.pct = m.total ? Math.floor(100 * m.learned / m.total) : 0;
+  return m;
 }
 function bar(m) {
-  return (
-    '<div class="progresslabel"><span>' +
-    m.seen +
-    " / " +
-    m.total +
-    " reviewed</span><strong>" +
-    m.pct +
-    '%</strong></div><progress aria-label="Questions reviewed" max="100" value="' +
-    m.pct +
-    '"></progress>'
-  );
+  const learning = m.seen - m.learned;
+  const label = m.learned + " learned, " + learning + " learning, " + (m.total-m.seen) + " unattempted";
+  return '<div class="mastery" role="img" aria-label="' + label + '" title="' + label +
+    '"><span class="track"><i class="learned" style="flex:' + m.learned +
+    '"></i><i class="learning" style="flex:' + learning +
+    '"></i><i style="flex:' + (m.total-m.seen) + '"></i></span><b>' + m.pct + '%</b></div>';
 }
 function catalogueRows(level, items) {
   return items.length
     ? '<div class="catalogue">' +
         items
           .map((item, i) => {
-            const m = metrics(
-              data.questions.filter((q) => belongs(q, level, item.id)),
-            );
+            const m = metrics(level, item.id);
             const chapters =
               level === "subject"
                 ? data.chapters.filter((c) => c.subject === item.id).length
@@ -146,7 +130,7 @@ function matchingRows() {
         );
         return found.length
           ? '<h2 class="subheading">' +
-              { subject: "Subjects", chapter: "Chapters", deck: "Decks" }[
+              { subject: "Dashboard", chapter: "Chapters", deck: "Decks" }[
                 type
               ] +
               "</h2>" +
@@ -164,14 +148,6 @@ document.addEventListener("input", (event) => {
   }
 });
 function studyLibrary() {
-  if (studyLevel === "root")
-    return (
-      '<div class="intro"><h1>Subjects</h1></div><input class="findstudy" id="library-search" type="search" aria-label="Search subjects, chapters and decks" placeholder="Search subjects, chapters and decks" value="' +
-      esc(librarySearch) +
-      '"><div id="matches">' +
-      matchingRows() +
-      "</div>"
-    );
   const level = studyLevel,
     id = studyId,
     obj = { subject: subjectBy, chapter: chapterBy, deck: deckBy }[level](id);
@@ -181,13 +157,12 @@ function studyLibrary() {
       : level === "chapter"
         ? subjectBy(obj.subject)
         : null;
-  const qs = data.questions.filter((q) => belongs(q, level, id)),
-    m = metrics(qs);
+  const m = metrics(level, id);
   let result =
     back(
       parent
         ? route(level === "deck" ? "chapter" : "subject", parent.id)
-        : "Subjects",
+        : "Dashboard",
       parent?.name || "Subjects",
     ) +
     '<section class="studyhead"><small>' +
@@ -222,48 +197,36 @@ function studyLibrary() {
   if (decks.length)
     result +=
       '<h2 class="subheading">Decks</h2>' + catalogueRows("deck", decks);
-  result +=
-    '<h2 class="subheading">' +
-    (level === "chapter" ? "All chapter questions" : "Questions") +
-    " <small>" +
-    qs.length +
-    "</small></h2>";
-  return (
-    result +
-    (qs.length
-      ? '<div class="qlist">' +
-        qs
-          .map(
-            (q, i) =>
-              '<button class="qrow" data-practice="question" data-id="' +
-              esc(q.id) +
-              '" ' +
-              (available(q) ? "" : "disabled") +
-              '><span class="qnumber">' +
-              (i + 1) +
-              "</span><span><strong>" +
-              math(q.prompt || "Review question " + (i + 1)) +
-              "</strong><small>" +
-              esc(deckBy(q.deck)?.name || "Chapter question") +
-              " · " +
-              (q.due
-                ? available(q)
-                  ? "Due now"
-                  : "Due " + new Date(q.due).toLocaleDateString()
-                : "New") +
-              "</small></span></button>",
-          )
-          .join("") +
-        "</div>"
-      : '<p class="panel muted">No questions in this ' + level + " yet.</p>")
-  );
+  if (level === "deck" && m.total && m.seen === m.total)
+    result += '<button class="outline" data-reset="' + esc(id) + '">Reset deck progress</button>';
+  return result + '<h2 class="subheading">Questions</h2><div id="question-page">Loading questions…</div>';
+}
+let questionOffset = 0;
+async function showQuestionPage() {
+  const el = $("#question-page");
+  if (!el) return;
+  const offset = questionOffset, level = studyLevel, id = studyId;
+  try {
+    const rows = await rpc("page", { scope: level, item: id, page_offset: offset });
+    if (!el.isConnected || offset !== questionOffset) return;
+    el.innerHTML = rows.map((q,i) => {
+      const status = !q.due ? "Unattempted" : q.stage >= 3 ? "Learned" : "Learning";
+      return '<button class="qrow" data-practice="question" data-id="' + esc(q.id) +
+        '" ' + (available(q) ? "" : "disabled") + '><span class="qnumber ' + status.toLowerCase() +
+        '" aria-label="' + status + '">' + (offset+i+1) + '</span><span><strong>' + math(q.prompt) +
+        '</strong><small>' + status + '</small></span></button>';
+    }).join("") || '<p class="muted">No questions here yet.</p>';
+    if (offset) el.innerHTML += '<button class="outline" data-offset="' + (offset-40) + '">Previous</button> ';
+    if (offset+rows.length < metrics(level,id).total)
+      el.innerHTML += '<button class="outline" data-offset="' + (offset+40) + '">Next page</button>';
+  } catch (error) { el.textContent = error.message; }
 }
 function ranked(level) {
   const items = level === "subject" ? data.subjects : data.chapters;
   return items
     .map((item) => ({
       item,
-      m: metrics(data.questions.filter((q) => belongs(q, level, item.id))),
+      m: metrics(level,item.id),
     }))
     .filter((x) => x.m.missed)
     .sort(
@@ -287,23 +250,10 @@ function focusRow(level, { item, m }) {
     ' reviewed questions missed on the latest attempt</small></span><span class="chev">›</span></button>'
   );
 }
-function focusPreview() {
-  const r = ranked("chapter")[0];
-  return (
-    '<div class="sectionhead"><h2>Learning insights</h2><button class="textbtn" data-nav="Insights">View insights</button></div>' +
-    (r
-      ? focusRow("chapter", r)
-      : '<div class="panel muted">' +
-        (data.answered
-          ? "No chapters currently have missed questions."
-          : "Answer questions to see which chapters need more practice.") +
-        "</div>")
-  );
-}
 function insights() {
   let html =
-    '<h1>Learning insights</h1><section class="studyhead"><h2>Overall coverage</h2>' +
-    bar(metrics(data.questions)) +
+    '<h1>Learning insights</h1><section class="studyhead"><h2>Overall mastery</h2>' +
+    bar(metrics()) +
     "</section>";
   for (const level of ["subject", "chapter"]) {
     const list = ranked(level);
@@ -315,7 +265,7 @@ function insights() {
         ? '<p class="insightnote">Highest share of questions missed on the latest attempt first.</p>' +
           list.map((x) => focusRow(level, x)).join("")
         : '<div class="panel muted">' +
-          (data.answered
+          (metrics().seen
             ? "No current misses at this level."
             : "Answer a few questions to see your focus areas.") +
           "</div>");

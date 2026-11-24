@@ -74,9 +74,6 @@ dialog {
   background: #f5f7f4;
 }
 @media (max-width: 680px) {
-  .side .nav[data-nav="Admin"] {
-    display: none;
-  }
   .side .nav {
     font-size: 11.5px;
   }
@@ -120,3 +117,14 @@ dialog {
     min-height: 55px;
   }
 }
+.mastery { display:flex; align-items:center; gap:.7rem; margin:.55rem 0; }
+.mastery b { font-size:.78rem; font-variant-numeric:tabular-nums; }
+.mastery .track { flex:1; height:5px; display:flex; overflow:hidden; border-radius:5px; background:#d5dad9; }
+.track .learned { background:#287645; }
+.track .learning { background:#bf5454; }
+.qrow:disabled { opacity:1; cursor:default; }
+.qnumber.learned { background:#d9efdf; color:#196237; }
+.qnumber.learning { background:#f8dddd; color:#9a3131; }
+.qnumber.unattempted { background:#e9ebeb; color:#515a59; }
+.approval { gap:12px; padding:8px 0; overflow-wrap:anywhere; }
+.admin-tabs { flex-wrap:wrap; }
